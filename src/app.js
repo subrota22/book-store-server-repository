@@ -18,6 +18,30 @@ var GraphQLDate = require('graphql-date');
 //
 app.use(express.json()) ;
 app.use('*', cors());
+
+//
+
+//database connection start with mongoDB 
+
+const options = { useNewUrlParser: true, useUnifiedTopology: true  }
+mongoose
+  .connect(mongoDB_url, options)
+  .then(() =>  console.log("Successfully connected with mongoDB !! "))
+  .catch(error => {
+    throw error
+  });
+
+
+
+
+//database connection start with mongoDB 
+
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const client = new MongoClient(mongoDB_url, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+const booksCollection = client.db("test").collection("books");
+
+// database connection start with mongoDB  
+
  //book shema start <<---------------------<<-----------------<<
 const bookModelInfo = () => {
   
@@ -36,6 +60,17 @@ return mongoose.model("Book" , BookSchema) ;
 
 }
 const bookInfo = bookModelInfo() ;
+//
+
+const pagination = async  (page,size) => {
+  console.log("params ==>" ,page , size);
+const cursor =  booksCollection.find({});
+const count = await booksCollection.count();
+const data = await cursor.skip(page * size).limit(size).sort({_id: -1 }).toArray();
+const paginationInfo = {data:data , count:count} ;
+return paginationInfo ;
+}
+
 //book schema for graphQL
 function bookSchema () {
 var bookType = new GraphQLObjectType({
@@ -102,7 +137,30 @@ var queryType = new GraphQLObjectType({
           }
           return bookDetails
         }
-      }
+      } ,
+       //make pagination
+
+       booksQuery: {
+        type: bookType,
+        args: {
+          page: {
+            type: new GraphQLNonNull(GraphQLInt)
+          },
+          size: {
+            type: new GraphQLNonNull(GraphQLInt)
+          }
+        },
+        resolve: async function  (root, params) {
+          const page = parseInt(params.page);
+          const size = parseInt(params.size);
+         const paginationData = await pagination(page , size) ;
+         console.log("paginationData ==>" , paginationData);
+          if (!paginationData) {
+            throw new Error('Error');
+          }
+          return paginationData
+        }
+      },
     }
   }
 });
@@ -193,7 +251,8 @@ var mutation = new GraphQLObjectType({
           return remBook;
         }
       } ,
-      
+     
+
     }
   }
 });
@@ -210,24 +269,7 @@ app.use('/books', cors(), graphqlHTTP({
 }));
 
 
-//database connection start with mongoDB 
 
-const options = { useNewUrlParser: true, useUnifiedTopology: true  }
-mongoose
-  .connect(mongoDB_url, options)
-  .then(() =>  console.log("Successfully connected with mongoDB !! "))
-  .catch(error => {
-    throw error
-  });
-
-
-
-
-//database connection start with mongoDB 
-
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const client = new MongoClient(mongoDB_url, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
-const booksCollection = client.db("test").collection("books");
 app.get("/bookData/:id" , async (req ,res) => {
 const id = req.params.id ;
 const resut = await booksCollection.findOne({_id: new ObjectId(id)}) ;
@@ -245,10 +287,6 @@ app.get("/", (req, res) => {
 app.listen(port, (req, res) => {
     console.log(`Server runing on port number: ${port}`);
 });
-
-
-///
-
 
 
 
