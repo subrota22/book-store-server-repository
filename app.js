@@ -63,9 +63,8 @@ const bookInfo = bookModelInfo() ;
 //
 
 const pagination = async  (page,size) => {
-  console.log("params ==>" ,page , size);
 const cursor =  booksCollection.find({});
-const count = await booksCollection.count();
+const count = await booksCollection.estimatedDocumentCount();
 const data = await cursor.skip(page * size).limit(size).sort({_id: -1 }).toArray();
 const paginationInfo = {data:data , count:count} ;
 return paginationInfo ;
